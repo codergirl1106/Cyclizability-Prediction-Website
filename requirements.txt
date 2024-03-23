@@ -2,7 +2,7 @@ matplotlib
 numpy
 pandas 
 tensorflow
-keras
+keras==2.15.0
 scipy
 scikit-learn
 streamlit_scrollable_textbox
