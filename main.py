@@ -317,7 +317,6 @@ def longcode(sequence, helical_turn):
 
     # trim random sequences
     amp,psi = amp[25:-25],psi[25:-25]
-
     return amp, psi
 
 def spatial_analysis_ui(imgg, sequence, texttt, cords):
