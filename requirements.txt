@@ -10,3 +10,4 @@ stmol
 py3Dmol
 ipython_genutils
 streamlit_js_eval
+protobuf==3.20.*
