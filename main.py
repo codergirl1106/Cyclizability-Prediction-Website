@@ -254,7 +254,7 @@ def pdb_out(name, psi, amp, factor, cords):
             arrow[j] /= np.linalg.norm(arrow[j])
             arrow[j] *= factor*amp[i][j]
         
-        e = cords[i][0] + arrow  # OH THIS ERROR OCCURS BECAUSE THERE ARE TWO SEQUENCES. FIGURE OUT HOW TO INCORPERATE THE SECOND SEQUENCE.
+        e = cords[i][0] + arrow
         o = np.around(cords[i][0], 3)
         e = np.around(e, 3)
 
