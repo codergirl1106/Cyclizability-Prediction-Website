@@ -48,65 +48,70 @@ def pred(model, pool):
     A.resize((len(pool),))
     return A
 
-def getTexttt(pbdid): 
-    link = f"https://files.rcsb.org/download/{pbdid}.pdb"
-    texttt = requests.get(link).text
-    return texttt
-
-def getSequence(pbdid):
+def getFasta(pbdid): 
     sequencelink = f"https://www.rcsb.org/fasta/entry/{pbdid}"
     tt = requests.get(sequencelink).text
-    seq_and_chains = re.findall(f">{pbdid.upper()}_\d|Chains? ([A-Z])([^|]*).*\n([A-Z]+)\n",tt)
+    return tt
+
+def getCif(pdbid):
+    link = f'https://files.rcsb.org/download/{pdbid}.cif'
+    text = requests.get(link).text
+    return text
+
+def getSequence(fasta, cif):
+    seq_and_chains = []
+    fasta = fasta.split('\n')[:-1]
+    for i in range(0, len(fasta), 2):
+        seq_and_chains.append([re.findall(r'([A-Z]+)(?:\[auth [^\]]+\])?[,|]', fasta[i]), fasta[i+1]])
+        
     seq_and_chains.sort()
-    
-    otherlink = f'https://files.rcsb.org/download/{pbdid}.cif'
-    tt = requests.get(otherlink).text
+
     sequences = []
     cords = []
-    
+
     qqq = dict()
     sqq = dict()
     for i in seq_and_chains:
-        if i[0] == '' or i[2] == '':
-            continue
-
-        im = i[1].split(',')
-        chains, seq = [i[0]], i[2]
-        if len(im) >= 2:
-            chains += list(map(lambda x: x.strip()[0], im[1:]))
-        
-        stuff = re.findall(f'ATOM[^\S\r\n]+(\d+)[^\S\r\n]+([A-Z])[^\S\r\n]+(\"?[A-Z]+\d*\'?\"?)[^\S\r\n]+(.)[^\S\r\n]+([A-Z]+)[^\S\r\n]+([{"|".join(chains)}])[^\S\r\n]+([0-9]+)[^\S\r\n]+([0-9]+)[^\S\r\n]+\?[^\S\r\n]+'+"(-?\d+[\.\d]*)[^\S\r\n]*"*5+'.+\n', tt)
-        if set(seq[int(stuff[0][7])-1:int(stuff[-1][7])]).issubset({'A', 'C', 'G', 'T'}):
-            # find helical axis
+        chains, seq = i[0], i[1]
+        stuff = re.findall(f'ATOM[^\S\r\n]+(\d+)[^\S\r\n]+([A-Z])[^\S\r\n]+(\"?[A-Z]+\d*\'?\"?)[^\S\r\n]+(.)[^\S\r\n]+([A-Z]+)[^\S\r\n]+({"|".join(chains)})[^\S\r\n]+([0-9]+)[^\S\r\n]+([0-9]+)[^\S\r\n]+\?[^\S\r\n]+'+"(-?\d+[\.\d]*)[^\S\r\n]*"*5+'.+\n', cif)
+        if set(seq).issubset({'A', 'C', 'G', 'T', 'N', 'X'}):
             for line in stuff:
                 if line[4] in ['DA', 'DG'] and line[2] == 'C8':
-                    sqq[line[5]] = seq[int(stuff[0][7])-1:int(stuff[-1][7])]
                     if line[5] in qqq:
                         qqq[line[5]].append([float(line[_]) for _ in range(8, 11)])
                     else:
                         qqq.update({line[5]: [[float(line[_]) for _ in range(8, 11)]]})
+                        seqcords = [int(i[7]) for i in stuff if i[5] == line[5]]
+                        sqq[line[5]] = (seq, min(seqcords)-1,max(seqcords))
                     
                 if line[4] in ['DT', 'DC'] and line[2] == 'C6':
-                    sqq[line[5]] = seq[int(stuff[0][7])-1:int(stuff[-1][7])]
                     if line[5] in qqq:
                         qqq[line[5]].append([float(line[_]) for _ in range(8, 11)])
                     else:
                         qqq.update({line[5]: [[float(line[_]) for _ in range(8, 11)]]})
-
-    alphabet = string.ascii_uppercase
+                        seqcords = [int(i[7]) for i in stuff if i[5] == line[5]]
+                        sqq[line[5]] = (seq, min(seqcords)-1,max(seqcords))
+                        
     if len(qqq) % 2 == 0:
         while True:
             keyd = sorted(qqq.keys())
+            
             if len(keyd) == 0:
                 break
-            keyn = alphabet[alphabet.index(keyd[0])+1]
-            sequences.append(sqq[keyd[0]])
-            qqq[keyd[0]] = qqq[keyd[0]]+qqq[keyn]
-            del qqq[keyn]
+
+            startindex = max(len(sqq[keyd[1]][0])-sqq[keyd[1]][2], sqq[keyd[0]][1])
+            endindex = min(len(sqq[keyd[1]][0])-sqq[keyd[1]][1], sqq[keyd[0]][2])
+
+            sequences.append(sqq[keyd[0]][0][startindex:endindex])
+            
+            qqq[keyd[0]] = qqq[keyd[0]][startindex-sqq[keyd[0]][1]:endindex-startindex+startindex-sqq[keyd[0]][1]]+qqq[keyd[1]][len(sqq[keyd[1]][0])-endindex-sqq[keyd[1]][1]:endindex-startindex+len(sqq[keyd[1]][0])-endindex-sqq[keyd[1]][1]]
+            del qqq[keyd[1]]
             qwer, asdf = np.array(qqq[keyd[0]][:len(qqq[keyd[0]])//2], dtype = np.single), np.array(qqq[keyd[0]][-(len(qqq[keyd[0]])//2):][::-1], dtype = np.single)
+            
             del qqq[keyd[0]]
             otemp = (qwer+asdf)/2
             o = np.array([(otemp[i+1]+otemp[i])/2 for i in range(len(otemp)-1)], dtype = np.single)
+
             ytemp = qwer - asdf
             z = np.array([otemp[i+1]-otemp[i] for i in range(len(otemp)-1)], dtype = np.single)
             ytemp = [(ytemp[i+1]+ytemp[i])/2 for i in range(len(ytemp)-1)]
@@ -114,15 +119,12 @@ def getSequence(pbdid):
             y = np.array([np.cross(z[i], x[i]) for i in range(len(z))], dtype = np.single)
             x = -np.array([x[i]/np.linalg.norm(x[i]) for i in range(len(x))], dtype = np.single) # direction of minor groove
             y = np.array([y[i]/np.linalg.norm(y[i]) for i in range(len(y))], dtype = np.single)
-            cords.append((o, x, y))
+            cords.append((o, x, y, z))
     elif len(qqq) == 3:
-        #print("hullo")
         main_seq = sorted(sqq.items(), key=lambda x: len(x[1]))[-1][0]
-        #print(main_seq)
         for i in qqq:
             if i != main_seq:
                 sequences.append(sqq[i])
-                #qqq[i] = qqq[i]+qqq[main_seq]
                 qwer, asdf = np.array(qqq[i][:len(qqq[i])//2], dtype = np.single), np.array(qqq[i][-(len(qqq[i])//2):][::-1], dtype = np.single)
                 otemp = (qwer+asdf)/2
                 o = np.array([(otemp[i+1]+otemp[i])/2 for i in range(len(otemp)-1)], dtype = np.single)
@@ -133,7 +135,7 @@ def getSequence(pbdid):
                 y = np.array([np.cross(z[i], x[i]) for i in range(len(z))], dtype = np.single)
                 x = -np.array([x[i]/np.linalg.norm(x[i]) for i in range(len(x))], dtype = np.single) # direction of minor groove
                 y = np.array([y[i]/np.linalg.norm(y[i]) for i in range(len(y))], dtype = np.single)
-                cords.append((o, x, y))
+                cords.append((o, x, y, z))
     else:
         for i in qqq:
             sequences.append(sqq[i])
@@ -147,11 +149,41 @@ def getSequence(pbdid):
             y = np.array([np.cross(z[i], x[i]) for i in range(len(z))], dtype = np.single)
             x = -np.array([x[i]/np.linalg.norm(x[i]) for i in range(len(x))], dtype = np.single) # direction of minor groove
             y = np.array([y[i]/np.linalg.norm(y[i]) for i in range(len(y))], dtype = np.single)
-            cords.append((o, x, y))
-    
+            cords.append((o, x, y, z))
+
     return sequences, cords
 
-def envelope(fity):
+def envelope2(x, y):
+    x, y = list(x), list(y)
+    uidx, ux, uy = [0], [x[0]], [y[0]]
+    lidx, lx, ly = [0], [x[0]], [y[0]]
+
+    # local extremas
+    for i in range(1, len(x)-1):
+        if (y[i] == max(y[max(0, i-3):min(i+4, len(y))])):
+            uidx.append(i)
+            ux.append(x[i])
+            uy.append(y[i])
+        if (y[i] == min(y[max(0, i-3):min(i+4, len(y))])):
+            lidx.append(i)
+            lx.append(x[i])
+            ly.append(y[i])
+
+    uidx.append(len(x)-1)
+    ux.append(x[-1])
+    uy.append(y[-1])
+    lidx.append(len(x)-1)
+    lx.append(x[-1])
+    ly.append(y[-1])
+
+    ubf = interp1d(ux, uy, kind=3, bounds_error=False)
+    lbf = interp1d(lx, ly, kind=3, bounds_error=False)
+    ub = np.array([y, ubf(x)]).max(axis=0)
+    lb = np.array([y, lbf(x)]).min(axis=0)
+
+    return ub, lb, ub-lb
+
+def envelope1(fity):
     ux, uy = [0], [fity[0]]
     lx, ly = [0], [fity[0]]
     
@@ -192,19 +224,11 @@ def show_st_3dmol(pdb_code,original_pdb,cartoon_style="oval",
 
     style_lst = []
     surface_lst = []
-    
-    view.addStyle({'chain':'Z'}, {'stick': {"color": "blue"}})
 
-    view.addStyle({'chain':'A'}, {'line': {}})
-    view.addStyle({'chain':'B'}, {'line': {}})
-    view.addStyle({'chain':'C'}, {'line': {}})
-    view.addStyle({'chain':'D'}, {'line': {}})
-    view.addStyle({'chain':'E'}, {'line': {}})
-    view.addStyle({'chain':'F'}, {'line': {}})
-    view.addStyle({'chain':'G'}, {'line': {}})
-    view.addStyle({'chain':'H'}, {'line': {}})
-    view.addStyle({'chain':'I'}, {'line': {}})
-    view.addStyle({'chain':'J'}, {'line': {}})
+    view.addStyle({'chain':'X'}, {'stick': {"color": "blue"}})
+    
+    for i in string.ascii_uppercase:
+        view.addStyle({'chain':i}, {'line': {}})
     
     view.zoomTo()
     view.spin(spin_on)
@@ -235,7 +259,7 @@ def helpercode(model_num: int, seqlist: dict, pool, sequence):
     result_array -= result_array.mean()
     return result_array
 
-def pdb_out(name, psi, amp, factor, cords):
+def pdb_out(psi, amp, factor, cords):
     counterhetatm = 0
     counterconect = 0
 
@@ -244,7 +268,6 @@ def pdb_out(name, psi, amp, factor, cords):
     conectf = ''
     for i in range(len(cords)):
         arrow = []
-        
         for j in range(len(cords[i][1])):
             arrow.append(np.cos(-psi[i][j])*cords[i][1][j] + np.sin(-psi[i][j])*cords[i][2][j])
         
@@ -261,12 +284,12 @@ def pdb_out(name, psi, amp, factor, cords):
         hetatm = ''
         conect = ''
         for j in range(len(o)):
-            hetatm += 'HETATM' + str(counterhetatm+j+1).rjust(5) + ' C    AXI ' + 'Z' + '   1    ' # '    1' 5d
+            hetatm += 'HETATM' + str(counterhetatm+j+1).rjust(5) + ' C    AXI ' + f'X{i+1}' +' '*(3-len(str(i+1)))+'1    ' # '    1' 5d
             for k in range(3):
                 hetatm += str(o[j][k]).rjust(8)
             hetatm += '\n'
         for j in range(len(e)):
-            hetatm += 'HETATM' + str(counterhetatm+j+1+len(o)).rjust(5) + ' C    AXI ' + 'Z' + '   1    ' # '    1' 5d
+            hetatm += 'HETATM' + str(counterhetatm+j+1+len(o)).rjust(5) + ' C    AXI ' + f'X{i+1}' +' '*(3-len(str(i+1)))+'1    ' # '    1' 5d
             for k in range(3):
                 hetatm += str(round(e[j][k], 2)).rjust(8)
             hetatm += '\n'
@@ -281,6 +304,56 @@ def pdb_out(name, psi, amp, factor, cords):
         conectf += conect
 
     return pdb_final_output + hetatmf + conectf
+
+def spatial(seq):
+    def func(x): # x = [C0, amp, psi]
+        return [c26_ - x[0] - x[1]**2*math.cos((34.5/10.3-3)*2*math.pi-math.pi*2/3 - x[2]),
+                c29_ - x[0] - x[1]**2*math.cos((31.5/10.3-3)*2*math.pi-math.pi*2/3 - x[2]),
+                c31_ - x[0] - x[1]**2*math.cos((29.5/10.3-2)*2*math.pi-math.pi*2/3 - x[2])]
+
+    base = ['A','T','G','C']
+    left = ''.join([random.choice(base) for i in range(49)])
+    right = ''.join([random.choice(base) for i in range(49)])
+    seq = left + seq + right
+    seqlist = [seq[i:i+50] for i in range(len(seq)-50+1)]
+
+    zxcv26 = pred(load_model(26), seqlist)
+    zxcv29 = pred(load_model(29), seqlist)
+    zxcv31 = pred(load_model(31), seqlist)
+    zxcv26 -= zxcv26.mean()
+    zxcv29 -= zxcv29.mean()
+    zxcv31 -= zxcv31.mean()
+    
+    u26, l26, caf26 = envelope2(np.arange(len(zxcv26)), zxcv26)
+    u29, l29, caf29 = envelope2(np.arange(len(zxcv29)), zxcv29)
+    u31, l31, caf31 = envelope2(np.arange(len(zxcv31)), zxcv31)
+    amp = (caf26 + caf29 + caf31)/3
+    psi = []
+    for i in range(len(amp)):
+        c26_, c29_, c31_ = zxcv26[i], zxcv29[i], zxcv31[i]
+        root = fsolve(func, [1, 1, 1])
+        psi.append(root[2])
+        if(psi[-1] > math.pi): psi[-1] -= 2*math.pi
+    psi = np.array(psi)
+    amp = amp[25:-25]
+    psi = psi[25:-25]
+    return amp, psi
+
+def similarity(seq, cord):
+    amp, psi = spatial(seq)
+    
+    arrow = []
+    for j in range(len(cord[1])): arrow.append(np.cos(-psi[j])*cord[1][j] + np.sin(-psi[j])*cord[2][j])
+    arrow = np.array(arrow)
+    for j in range(len(arrow)):
+        arrow[j] /= np.linalg.norm(arrow[j])
+        arrow[j] *= amp[j]
+
+    similar = []
+    for i in range(len(arrow)):
+        _1, _2 = max(0, i-24), min(len(arrow), i+24+1)
+        similar.append(np.inner(cord[3][_2-1]-cord[3][_1], arrow[i]))
+    return np.array(similar)
 
 @my_cache
 def longcode(sequence, helical_turn):
@@ -305,7 +378,7 @@ def longcode(sequence, helical_turn):
     for modelnum in models.keys():
         models[modelnum] = helpercode(modelnum, seqlist, pool, sequence)
         
-    amp = sum(envelope(m) for m in models.values()) / len(models)
+    amp = sum(envelope1(m) for m in models.values()) / len(models)
     
     psi = []
     for i in range(len(amp)):
@@ -315,7 +388,6 @@ def longcode(sequence, helical_turn):
 
     psi = np.array(psi, dtype = np.single)
 
-    # trim random sequences
     amp,psi = amp[25:-25],psi[25:-25]
     return amp, psi
 
@@ -336,111 +408,155 @@ def spatial_analysis_ui(imgg, sequence, texttt, cords):
 
     # remove reverse complementary strands
 
-    amp, psi = [], []
-    for seq in sequence:
-        a, p = longcode(seq, helical_turn)
+    amp, psi, sim = [], [], []
+    for seq in range(len(sequence)):
+        a, p = longcode(sequence[seq], helical_turn)
         amp.append(a)
         psi.append(p)
+        sim.append(similarity(sequence[seq], cords[seq]))
     
-    pdb_output = pdb_out(texttt, psi, amp, factor, cords)
+    pdb_output = pdb_out(psi, amp, factor, cords)
 
     file_nameu = st.text_input('file name', 'spatial_visualization.pdb')
-    show_st_3dmol(pdb_output,texttt)
+    show_st_3dmol(pdb_output, texttt)
     st.download_button('Download .pdb', pdb_output, file_name=f"{file_nameu}")
                     
     st.markdown("***")
     
     for v in range(len(amp)):
+        st.header(f"Sequence {v+1}")
         figg, axx = plt.subplots()
         figgg, axxx = plt.subplots()
-            
+        figggg, axxxx = plt.subplots()
+        
         plt.figure(figsize=(10, 3))
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
+        axx.spines[['right', 'top']].set_visible(False)
+        axxx.spines[['right', 'top']].set_visible(False)
+        axxxx.spines[['right', 'top']].set_visible(False)
         
-        axx.plot(amp[v])
-        axxx.plot(psi[v])
-        
-        st.header(f"Amplitude Graph {v+1}")
-        filetype = st.selectbox(f'amplitude graph {v+1} file type', ('svg', 'png', 'jpeg'))
-        
-        figg.savefig(imgg, format=filetype)
-        file_name3 = st.text_input('file name', f'amplitude_graph{v+1}.{filetype}')
-        btn3 = st.download_button(label="Download graph",data=imgg,file_name=f"{file_name3}",mime=f"image/{filetype}")
-        st.pyplot(figg)
+        axx.plot(amp[v], color='black')
+        axxx.plot(psi[v], color='black')
+        axxxx.plot(sim[v], color='black')
 
+        col1, col2, col3 = st.columns([0.333, 0.333, 0.333])
+        with col1:
+            st.subheader(f"Amplitude Graph")
+            st.pyplot(figg)
+            
+            filetype = st.selectbox(f'amplitude graph {v+1} file type', ('svg', 'png', 'jpeg'))
+            
+            figg.savefig(imgg, format=filetype)
+            file_name3 = st.text_input('file name', f'amplitude_graph{v+1}.{filetype}')
+            btn3 = st.download_button(label="Download graph",data=imgg,file_name=f"{file_name3}",mime=f"image/{filetype}")
+            
+        with col2:  
+            st.subheader(f"Phase Graph")
+            st.pyplot(figgg)
+            
+            filetype2 = st.selectbox(f'phase graph {v+1} file type', ('svg', 'png', 'jpeg'))
+            
+            figgg.savefig(imgg, format=filetype2)
+            file_name4 = st.text_input('file name', f'phase_graph{v+1}.{filetype2}')
+            btn4 = st.download_button(label="Download graph",data=imgg,file_name=f"{file_name4}",mime=f"image/{filetype2}")
+            
+        with col3:
+            st.subheader(f"Similarity Graph")
+            st.pyplot(figggg)
+            
+            filetype3 = st.selectbox(f'similarity graph {v+1} file type', ('svg', 'png', 'jpeg'))
+            
+            figgg.savefig(imgg, format=filetype3)
+            file_name5 = st.text_input('file name', f'similarity_graph{v+1}.{filetype3}')
+            btn5 = st.download_button(label="Download graph",data=imgg,file_name=f"{file_name5}",mime=f"image/{filetype3}")
+            
         st.markdown("***")
-            
-        st.header(f"Data for Amplitude Graph {v+1}")
-        long_text11 = "\n".join(f"{0.5+i}, {amp[v][i]}" for i in range(len(amp[v])))
 
-        file_name11 = st.text_input('file name', f'amplitude_data{v+1}.txt')
-            
-        st.download_button('Download data', long_text11, file_name=f"{file_name11}")
-
-        st.markdown("data format in (x, y) coordinates")
-        stx.scrollableTextbox(long_text11, height = 300)
-            
-        st.markdown("***")
-                    
-        st.header(f"Phase Graph {v+1}")
-        filetype2 = st.selectbox(f'phase graph {v+1} file type', ('svg', 'png', 'jpeg'))
-        
-        figgg.savefig(imgg, format=filetype2)
-        file_name4 = st.text_input('file name', f'phase_graph{v+1}.{filetype2}')
-        btn4 = st.download_button(label="Download graph",data=imgg,file_name=f"{file_name4}",mime=f"image/{filetype2}")
-        st.pyplot(figgg)
-
-        st.markdown("***")
-            
-        st.header(f"Data for Phase Graph {v+1}")
-            
-        long_text22 = "\n".join(f"{0.5+i}, {psi[v][i]}" for i in range(len(psi[v])))
-
-        file_name22 = st.text_input('file name', f'phase_data{v+1}.txt')
-            
-        st.download_button('Download data', long_text22, file_name=f"{file_name22}")
-
-        st.markdown("data format in (x, y) coordinates")
-        stx.scrollableTextbox(long_text22, height = 300)
-
-def sequence_ui(imgg, seq, option):
-    seq = seq[0]
+    st.header(f"Amplitude Graph Data")
+    long_text11 = "\n".join([','.join(map(lambda x: format(x, '.4f'), i)) for i in amp])
     
-    list50 = [seq[i:i+50] for i in range(len(seq)-50+1)]
+    file_name11 = st.text_input('file name', f'amplitude_data.txt')
+    
+    st.download_button('Download data', long_text11, file_name=f"{file_name11}")
 
+    st.markdown("data format w/ one sequence per line")
+    stx.scrollableTextbox(long_text11, height = 300)
+
+    st.markdown("***")
+            
+    st.header(f"Phase Graph Data")
+            
+    long_text22 = "\n".join([','.join(map(lambda x: format(x, '.4f'), i)) for i in psi])
+
+    file_name22 = st.text_input('file name', f'phase_data.txt')
+            
+    st.download_button('Download data', long_text22, file_name=f"{file_name22}")
+
+    st.markdown("data format w/ one sequence per line")
+    stx.scrollableTextbox(long_text22, height = 300)
+
+    st.header(f"Similarity Graph Data")
+            
+    long_text33 = "\n".join([','.join(map(lambda x: format(x, '.4f'), i)) for i in sim])
+
+    file_name33 = st.text_input('file name', f'similarity_data.txt')
+    
+    st.download_button('Download data', long_text33, file_name=f"{file_name33}")
+
+    st.markdown("data format w/ one sequence per line")
+    stx.scrollableTextbox(long_text33, height = 300)
+
+def sequence_ui(imgg, seqs, option):
     modelnum = int(re.findall(r'\d+', option)[0])
 
-    cNfree = list(pred(load_model(modelnum), list50))
-    
-    # show matplotlib graph
-    fig, ax = plt.subplots()
-    ax.plot(cNfree)
-    plt.figure(figsize=(10, 3))
-    plt.gca().spines['top'].set_visible(False)
-    plt.gca().spines['right'].set_visible(False)
-    # download matplotlib graph
-    st.markdown("***")
-    st.header(f"Graph of C{modelnum}free prediction")
-    filetype5 = st.selectbox('file type', ('png', 'svg', 'jpeg'))
-        
-    fig.savefig(imgg, format=filetype5)
+    cNfree_predictions = []
+    count = 1
 
-    file_name1 = st.text_input('file name', f'C{modelnum}free_prediction.{filetype5}')
-    btn = st.download_button(
-        label="Download graph",
-        data=imgg,
-        file_name=f"{file_name1}",
-        mime=f"image/{filetype5}"
-    )
+    for seq in seqs:
+        if len(seq) >= 50:
+            list50 = [seq[i:i+50] for i in range(len(seq)-50+1)]
+
+            cNfree = list(pred(load_model(modelnum), list50))
+            cNfree_predictions.append(cNfree)
+            
+            fig, ax = plt.subplots()
+            plt.figure(figsize=(10, 3))
+            plt.gca().spines['top'].set_visible(False)
+            plt.gca().spines['right'].set_visible(False)
+            ax.spines[['right', 'top']].set_visible(False)
         
-    st.pyplot(fig)
+            ax.plot(cNfree, color='black')
+        
+            st.markdown("***")
+            st.header(f"C{modelnum}free prediction for Sequence {count}")
+            filetype5 = st.selectbox(f'C{modelnum}free sequence {count} file type', ('png', 'svg', 'jpeg'))
+            
+            fig.savefig(imgg, format=filetype5)
+
+            file_name1 = st.text_input(f'C{modelnum}free sequence {count} file name', f'C{modelnum}free_sequence{count}_prediction.{filetype5}')
+            btn = st.download_button(
+                label="Download graph",
+                data=imgg,
+                file_name=f"{file_name1}",
+                mime=f"image/{filetype5}"
+            )
+            
+            st.pyplot(fig)
+        else:
+            st.markdown("***")
+            st.header(f"C{modelnum}free prediction for Sequence {count}")
+            st.markdown(f"Sequence < 50bp; C{modelnum}free prediction cannot be run on this sequence.")
+            
+        count += 1
+
     st.markdown("***")
+
     st.header(f"Data of C{modelnum}free prediction")
-    # show data in scrollable window
-    long_text = "\n".join(f"{list50[i]} {cNfree[i]}" for i in range(len(cNfree)))
 
-    file_name = st.text_input('file name', f'C{modelnum}free_prediction.txt')
+    long_text = "\n".join([','.join(map(lambda x: format(x, '.4f'), i)) for i in cNfree_predictions])
+
+    file_name = st.text_input('file name', f'C{modelnum}free_prediction_data.txt')
     
     st.download_button('Download data', long_text, file_name=f"{file_name}")
         
@@ -456,65 +572,52 @@ def main():
     st.markdown("the [github](%s) code!" % "https://github.com/codergirl1106/Cyclizability-Prediction-Website/")
     st.markdown("---")
 
-    col1, col2, col3 = st.columns([0.46, 0.08, 0.46])
     seq = ''
+    cords = ''
+    pdbcif = ''
     
-    texttt = None
-    with col1:
-        seq = [st.text_input('input a sequence', seq).upper()]
+    st.subheader("Input Option 1: RCSB PDB IDs")
+    pdbid = st.text_input('PDB ID','', placeholder="7OHC").upper()
+    if pdbid != '' and seq == '':
         try:
-            texttt = st.file_uploader("upload a pdb file").getvalue().decode("utf-8")
+            seq, cords = getSequence(getFasta(pdbid), getCif(pdbid))
+        except:
+            pass
 
-            lines = re.findall('ATOM[^\S\r\n]+(\d+)[^\S\r\n]+(C8|C6)[^\S\r\n]+(DA|DG|DC|DT)[^\S\r\n]+([A-Z])[^\S\r\n]+(-?[0-9]+)[^\S\r\n]+'+"(-?\d+[\.\d]*)[^\S\r\n]*"*5+"([A-Z])",texttt)
+    st.markdown("---")
 
-            # find helical axis
-            qwer = []
-            for line in lines:
-                if line[2] in ['DA', 'DG'] and line[1] == 'C8':
-                    qwer.append([float(line[_]) for _ in range(5, 8)])
-                if line[2] in ['DT', 'DC'] and line[1] == 'C6':
-                    qwer.append([float(line[_]) for _ in range(5, 8)])
-                    
-            qwer, asdf = np.array(qwer[:len(qwer)//2], dtype = np.single), np.array(qwer[-(len(qwer)//2):][::-1], dtype = np.single)
-            
-            otemp = (qwer+asdf)/2
-            o = np.array([(otemp[i+1]+otemp[i])/2 for i in range(len(otemp)-1)], dtype = np.single)
-            ytemp = qwer - asdf
-            z = np.array([otemp[i+1]-otemp[i] for i in range(len(otemp)-1)], dtype = np.single)
-            ytemp = [(ytemp[i+1]+ytemp[i])/2 for i in range(len(ytemp)-1)]
-            x = np.array([np.cross(ytemp[i], z[i]) for i in range(len(z))], dtype = np.single)
-            y = np.array([np.cross(z[i], x[i]) for i in range(len(z))], dtype = np.single)
+    st.subheader("Input Option 2: Custom Structure")
 
-            x = -np.array([x[i]/np.linalg.norm(x[i]) for i in range(len(x))], dtype = np.single) # direction of minor groove
-            y = np.array([y[i]/np.linalg.norm(y[i]) for i in range(len(y))], dtype = np.single)
-
-            cords = [(o, x, y)]
-        
+    col1, col2, col3 = st.columns([0.46, 0.08, 0.46])
+    with col1:
+        try:
+            fasta = st.file_uploader("upload a fasta file").getvalue().decode("utf-8")
         except:
             pass
         
     with col2:
-        st.subheader("OR")
+        st.subheader("AND")
     
     with col3:
-        pdbid = st.text_input('PDB ID','').upper()
-        if pdbid != '' and seq[0] == '':
-            try:
-                texttt = getTexttt(pdbid)
-                seq, cords = getSequence(pdbid)
-            except:
-                pass
+        try:
+            pdbcif = st.file_uploader("upload a pdb/cif file").getvalue().decode("utf-8")
+            seq, cords = getSequence(fasta, pdbcif)
+        except:
+            pass
             
     st.markdown("---")
     st.subheader("Please select the parameter you would like to predict/view")
     option = st.selectbox('', ('Spatial analysis', 'C0free prediction', 'C26free prediction', 'C29free prediction', 'C31free prediction'))
 
     imgg = io.BytesIO()
-    if option == 'Spatial analysis' and len(seq) != 0 and texttt != None:
-        spatial_analysis_ui(imgg, seq, texttt, cords)
-    elif option == 'Spatial analysis' and texttt == None and seq != '':
-        st.subheader(":red[Please attach a pdb file to visualize]")
-    elif len(seq[0]) >= 50:
+
+    if option == 'Spatial analysis' and len(seq) != 0 and len(cords) != 0 and pdbid != '':
+        spatial_analysis_ui(imgg, seq, getCif(pdbid), cords)
+    elif option == 'Spatial analysis' and len(seq) != 0 and len(cords) != 0:
+        spatial_analysis_ui(imgg, seq, pdbcif, cords)
+    elif option == 'Spatial analysis' and (len(seq) == 0 or len(cords) == 0):
+        st.subheader(":red[Incomplete Information to Visualize]")
+    elif len(seq) != 0 and option != 'Spatial analysis':
         sequence_ui(imgg, seq, option)
     else:
         st.subheader(":red[Please provide a sequence (>= 50bp) or a pdb id/file]")
