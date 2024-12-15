@@ -588,7 +588,7 @@ def main():
 
     st.subheader("Input Option 2: Custom Structure")
 
-    col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
+    col1, col2, col3 = st.columns([0.4, 0.2, 0.4])
     with col1:
         try:
             fasta = st.file_uploader("upload a fasta file").getvalue().decode("utf-8")
