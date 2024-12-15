@@ -592,7 +592,7 @@ def main():
     with col1:
         try:
             fasta = st.file_uploader("upload a fasta file").getvalue().decode("utf-8")
-            st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/1mcLi6EMX7xjKzD4gqQUrHAEQJFGz2rey/view?usp=sharing")
+            t1 = st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/1mcLi6EMX7xjKzD4gqQUrHAEQJFGz2rey/view?usp=sharing")
         except:
             pass
         
@@ -602,7 +602,7 @@ def main():
     with col3:
         try:
             pdbcif = st.file_uploader("upload a pdb/cif file").getvalue().decode("utf-8")
-            st.markdown("[example cif file](%s)" % "https://drive.google.com/file/d/15QZako2huyhmpRuoyXIgJzG9oz72UUk4/view?usp=sharing")
+            t2 = st.markdown("[example cif file](%s)" % "https://drive.google.com/file/d/15QZako2huyhmpRuoyXIgJzG9oz72UUk4/view?usp=sharing")
             seq, cords = getSequence(fasta, pdbcif)
         except:
             pass
