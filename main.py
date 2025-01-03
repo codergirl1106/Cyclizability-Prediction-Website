@@ -651,7 +651,7 @@ def main():
         spatial_analysis_ui(imgg, seq, pdbcif, cords)
     elif option == 'Spatial analysis' and (len(seq) == 0 or len(cords) == 0):
         st.subheader(":red[Incomplete Information to Visualize]")
-    elif len(seq) >= 50 and option != 'Spatial analysis':
+    elif len(seq) > 0 and option != 'Spatial analysis':
         sequence_ui(imgg, seq, option)
     else:
         st.subheader(":red[Please provide a sequence (>= 50bp) and a pdb id/file]")
