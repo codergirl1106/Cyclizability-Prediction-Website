@@ -314,12 +314,12 @@ def pdb_out(psi, amp, factor, cords):
         hetatm = ''
         conect = ''
         for j in range(len(o)):
-            hetatm += 'HETATM' + str(counterhetatm+j+1).rjust(5) + ' C    AXI ' + f'X{i+1}' +' '*(3-len(str(i+1)))+'1    ' # '    1' 5d
+            hetatm += 'HETATM' + str(counterhetatm+j+1).rjust(5) + ' C    AXI ' + f'X' +' '*(3-len(str(i+1)))+'1    ' # '    1' 5d
             for k in range(3):
                 hetatm += str(o[j][k]).rjust(8)
             hetatm += '\n'
         for j in range(len(e)):
-            hetatm += 'HETATM' + str(counterhetatm+j+1+len(o)).rjust(5) + ' C    AXI ' + f'X{i+1}' +' '*(3-len(str(i+1)))+'1    ' # '    1' 5d
+            hetatm += 'HETATM' + str(counterhetatm+j+1+len(o)).rjust(5) + ' C    AXI ' + f'X' +' '*(3-len(str(i+1)))+'1    ' # '    1' 5d
             for k in range(3):
                 hetatm += str(round(e[j][k], 2)).rjust(8)
             hetatm += '\n'
