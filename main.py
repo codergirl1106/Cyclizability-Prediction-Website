@@ -58,14 +58,31 @@ def getCif(pdbid):
     text = requests.get(link).text
     return text
 
-def getSequence(fasta, cif):
+def readCif(text, chains):
+    out = []
+    for line in text.split('\n'):
+        l = line.split()
+        if l[0] == "ATOM" and l[6] in chains and l[5] in {'DA', 'DG', 'DT', 'DC'}:
+            out.append([l[3], l[5],l[6],l[8],l[10],l[11],l[12]]) # C8/C6, DA/DG/DT/DC, chain, seq_index, x, y, z
+        
+    return out
+
+def readPDB(text, chains):
+    out = []
+    for line in text.split('\n'):
+        l = line.split()
+        if l[0] == "ATOM" and l[4] in chains and l[3] in {'DA', 'DG', 'DT', 'DC'}:
+            out.append([l[2], l[3], l[4], l[5], l[6], l[7], l[8]])
+            
+    return out
+
+def getSequence(fasta, text, ciforpdb):
     seq_and_chains = []
     fasta = fasta.split('\n')[:-1]
     for i in range(0, len(fasta), 2):
         seq_and_chains.append([re.findall(r'([A-Z]+)(?:\[auth [^\]]+\])?[,|]', fasta[i]), fasta[i+1]])
         
     seq_and_chains.sort()
-
     sequences = []
     cords = []
 
@@ -73,25 +90,30 @@ def getSequence(fasta, cif):
     sqq = dict()
     for i in seq_and_chains:
         chains, seq = i[0], i[1]
-        stuff = re.findall(f'ATOM[^\S\r\n]+(\d+)[^\S\r\n]+([A-Z])[^\S\r\n]+(\"?[A-Z]+\d*\'?\"?)[^\S\r\n]+(.)[^\S\r\n]+([A-Z]+)[^\S\r\n]+({"|".join(chains)})[^\S\r\n]+([0-9]+)[^\S\r\n]+([0-9]+)[^\S\r\n]+\?[^\S\r\n]+'+"(-?\d+[\.\d]*)[^\S\r\n]*"*5+'.+\n', cif)
+
+        if ciforpdb == "cif":
+            stuff = readCif(text, chains)
+        else:
+            stuff = readPDB(text, chains)
+
         if set(seq).issubset({'A', 'C', 'G', 'T', 'N', 'X'}):
             for line in stuff:
-                if line[4] in ['DA', 'DG'] and line[2] == 'C8':
-                    if line[5] in qqq:
-                        qqq[line[5]].append([float(line[_]) for _ in range(8, 11)])
+                if line[1] in ['DA', 'DG'] and line[0] == 'C8':
+                    if line[2] in qqq:
+                        qqq[line[2]].append([float(line[_]) for _ in range(4, 7)])
                     else:
-                        qqq.update({line[5]: [[float(line[_]) for _ in range(8, 11)]]})
-                        seqcords = [int(i[7]) for i in stuff if i[5] == line[5]]
-                        sqq[line[5]] = (seq, min(seqcords)-1,max(seqcords))
+                        qqq.update({line[2]: [[float(line[_]) for _ in range(4, 7)]]})
+                        seqcords = [int(i[3]) for i in stuff if i[2] == line[2]]
+                        sqq[line[2]] = [seq, min(seqcords)-1,max(seqcords)]
                     
-                if line[4] in ['DT', 'DC'] and line[2] == 'C6':
-                    if line[5] in qqq:
-                        qqq[line[5]].append([float(line[_]) for _ in range(8, 11)])
+                if line[1] in ['DT', 'DC'] and line[0] == 'C6':
+                    if line[2] in qqq:
+                        qqq[line[2]].append([float(line[_]) for _ in range(4, 7)])
                     else:
-                        qqq.update({line[5]: [[float(line[_]) for _ in range(8, 11)]]})
-                        seqcords = [int(i[7]) for i in stuff if i[5] == line[5]]
-                        sqq[line[5]] = (seq, min(seqcords)-1,max(seqcords))
-                        
+                        qqq.update({line[2]: [[float(line[_]) for _ in range(4, 7)]]})
+                        seqcords = [int(i[3]) for i in stuff if i[2] == line[2]]
+                        sqq[line[2]] = [seq, min(seqcords)-1,max(seqcords)]
+
     if len(qqq) % 2 == 0:
         while True:
             keyd = sorted(qqq.keys())
@@ -99,6 +121,14 @@ def getSequence(fasta, cif):
             if len(keyd) == 0:
                 break
 
+            if sqq[keyd[0]][1] <= 0:
+                sqq[keyd[0]][2] += 1-sqq[keyd[0]][1]
+                sqq[keyd[0]][1] += 1-sqq[keyd[0]][1]
+
+            if sqq[keyd[1]][1] <= 0:
+                sqq[keyd[1]][2] += 1-sqq[keyd[1]][1]
+                sqq[keyd[1]][1] += 1-sqq[keyd[1]][1]
+                
             startindex = max(len(sqq[keyd[1]][0])-sqq[keyd[1]][2], sqq[keyd[0]][1])
             endindex = min(len(sqq[keyd[1]][0])-sqq[keyd[1]][1], sqq[keyd[0]][2])
 
@@ -151,6 +181,7 @@ def getSequence(fasta, cif):
             y = np.array([y[i]/np.linalg.norm(y[i]) for i in range(len(y))], dtype = np.single)
             cords.append((o, x, y, z))
 
+    print(sequences, cords)
     return sequences, cords
 
 def envelope2(x, y):
@@ -217,7 +248,9 @@ def show_st_3dmol(pdb_code,original_pdb,cartoon_style="oval",
         view = py3Dmol.view(width=int(swidth/2), height=int(swidth/3))
     else:
         view = py3Dmol.view(width=int(swidth), height=int(swidth))
-        
+
+    print(original_pdb)
+    
     view.addModelsAsFrames(pdb_code)
     view.addModelsAsFrames(original_pdb)
     view.setStyle({"cartoon": {"style": cartoon_style,"color": cartoon_color,"thickness": cartoon_radius}})
@@ -602,8 +635,10 @@ def main():
     with col3:
         try:
             st.markdown("[example cif file](%s)" % "https://drive.google.com/file/d/15QZako2huyhmpRuoyXIgJzG9oz72UUk4/view?usp=sharing")
-            pdbcif = st.file_uploader("upload a pdb/cif file").getvalue().decode("utf-8")
-            seq, cords = getSequence(fasta, pdbcif)
+            pdbcif = st.file_uploader("upload a pdb/cif file")
+            fileextension = pdbcif.name.split('.')[-1]
+            pdbcif = pdbcif.getvalue().decode("utf-8")
+            seq, cords = getSequence(fasta, pdbcif, fileextension)
         except:
             pass
             
@@ -619,10 +654,10 @@ def main():
         spatial_analysis_ui(imgg, seq, pdbcif, cords)
     elif option == 'Spatial analysis' and (len(seq) == 0 or len(cords) == 0):
         st.subheader(":red[Incomplete Information to Visualize]")
-    elif len(seq) != 0 and option != 'Spatial analysis':
+    elif len(seq) >= 50 and option != 'Spatial analysis':
         sequence_ui(imgg, seq, option)
     else:
-        st.subheader(":red[Please provide a sequence (>= 50bp) or a pdb id/file]")
+        st.subheader(":red[Please provide a sequence (>= 50bp) and a pdb id/file]")
     return 0
 
 main()
