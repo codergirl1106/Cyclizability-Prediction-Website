@@ -181,7 +181,6 @@ def getSequence(fasta, text, ciforpdb):
             y = np.array([y[i]/np.linalg.norm(y[i]) for i in range(len(y))], dtype = np.single)
             cords.append((o, x, y, z))
 
-    print(sequences, cords)
     return sequences, cords
 
 def envelope2(x, y):
@@ -248,8 +247,6 @@ def show_st_3dmol(pdb_code,original_pdb,cartoon_style="oval",
         view = py3Dmol.view(width=int(swidth/2), height=int(swidth/3))
     else:
         view = py3Dmol.view(width=int(swidth), height=int(swidth))
-
-    print(original_pdb)
     
     view.addModelsAsFrames(pdb_code)
     view.addModelsAsFrames(original_pdb)
