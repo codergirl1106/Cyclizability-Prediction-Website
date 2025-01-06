@@ -62,18 +62,22 @@ def readCif(text, chains):
     out = []
     for line in text.split('\n'):
         l = line.split()
-        if l[0] == "ATOM" and l[6] in chains and l[5] in {'DA', 'DG', 'DT', 'DC'}:
-            out.append([l[3], l[5],l[6],l[8],l[10],l[11],l[12]]) # C8/C6, DA/DG/DT/DC, chain, seq_index, x, y, z
-        
+        if len(l) > 0:
+            if l[0] == "ATOM":
+                if l[6] in chains and l[5] in {'DA', 'DG', 'DT', 'DC'}:
+                    out.append([l[3], l[5],l[6],l[8],l[10],l[11],l[12]]) # C8/C6, DA/DG/DT/DC, chain, seq_index, x, y, z
+
     return out
 
 def readPDB(text, chains):
     out = []
     for line in text.split('\n'):
         l = line.split()
-        if l[0] == "ATOM" and l[4] in chains and l[3] in {'DA', 'DG', 'DT', 'DC'}:
-            out.append([l[2], l[3], l[4], l[5], l[6], l[7], l[8]])
-            
+        if len(l) > 0:
+            if l[0] == "ATOM":
+                if l[4] in chains and l[3] in {'DA', 'DG', 'DT', 'DC'}:
+                    out.append([l[2], l[3], l[4], l[5], l[6], l[7], l[8]])
+    
     return out
 
 def getSequence(fasta, text, ciforpdb):
