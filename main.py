@@ -614,7 +614,7 @@ def main():
     pdbid = st.text_input('PDB ID','', placeholder="7OHC").upper()
     if pdbid != '' and seq == '':
         try:
-            seq, cords = getSequence(getFasta(pdbid), getCif(pdbid))
+            seq, cords = getSequence(getFasta(pdbid), getCif(pdbid), "cif")
         except:
             pass
 
