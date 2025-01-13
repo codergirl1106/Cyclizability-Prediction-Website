@@ -606,7 +606,7 @@ def main():
     st.markdown("***:blue[C0, C26, C29, or C31 predictions]***: ***:green[pdb id (fasta sequence >= 50bp)]*** OR ***:violet[custom sequence (>= 50bp)]***")
     st.markdown("the [github](%s) code!" % "https://github.com/codergirl1106/Cyclizability-Prediction-Website/")
     st.markdown("---")
-    st.markdown("NOTE: We strongly recommend running the website using .cif file from RCSB PDB when possible. We've noticed some strangely formatted .pdb files, i.e. ATOM line 4517 from 6PW2.")
+    st.markdown("NOTE: We recommend running the website using .cif files from RCSB PDB rather than .pdb, when possible.")
     st.markdown("---")
     seq = ''
     cords = ''
