@@ -606,63 +606,93 @@ def main():
     st.markdown("***:blue[C0, C26, C29, or C31 predictions]***: ***:green[pdb id (fasta sequence >= 50bp)]*** OR ***:violet[custom sequence (>= 50bp)]***")
     st.markdown("the [github](%s) code!" % "https://github.com/codergirl1106/Cyclizability-Prediction-Website/")
     st.markdown("---")
-    st.markdown("NOTE: We recommend running the website using .cif files from RCSB PDB rather than .pdb, when possible.")
-    st.markdown("---")
+    
     seq = ''
+    seq1 = ''
+    seq2 = ''
     cords = ''
     pdbcif = ''
 
-    st.subheader("Input Option 1: RCSB PDB IDs")
-    pdbid = st.text_input('PDB ID','', placeholder="7OHC").upper()
-    if pdbid != '' and seq == '':
-        try:
-            seq, cords = getSequence(getFasta(pdbid), getCif(pdbid), "cif")
-        except:
-            pass
-
-    st.markdown("---")
-
-    st.subheader("Input Option 2: Custom Structure")
-
-    col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
-    with col1:
-        try:
-            st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/1mcLi6EMX7xjKzD4gqQUrHAEQJFGz2rey/view?usp=sharing")
-            fasta = st.file_uploader("upload a fasta file").getvalue().decode("utf-8")
-            t1 = st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/1mcLi6EMX7xjKzD4gqQUrHAEQJFGz2rey/view?usp=sharing")
-        except:
-            pass
-
-    with col2:
-        st.subheader("AND")
-
-    with col3:
-        try:
-            st.markdown("[example cif file](%s)" % "https://drive.google.com/file/d/15QZako2huyhmpRuoyXIgJzG9oz72UUk4/view?usp=sharing")
-            pdbcif = st.file_uploader("upload a pdb/cif file")
-            fileextension = pdbcif.name.split('.')[-1]
-            pdbcif = pdbcif.getvalue().decode("utf-8")
-            print(fasta, pdbcif, fileextension)
-            seq, cords = getSequence(fasta, pdbcif, fileextension)
-        except:
-            pass
-
-    st.markdown("---")
-    st.subheader("Please select the parameter you would like to predict/view")
-    option = st.selectbox('', ('Spatial analysis', 'C0free prediction', 'C26free prediction', 'C29free prediction', 'C31free prediction'))
-
     imgg = io.BytesIO()
+    
+    st.subheader("Analysis Type")
+    option = st.selectbox('', ('Spatial analysis', 'C0corr prediction', 'C26corr prediction', 'C29corr prediction', 'C31corr prediction'))
 
-    if option == 'Spatial analysis' and len(seq) != 0 and len(cords) != 0 and pdbid != '':
-        spatial_analysis_ui(imgg, seq, getCif(pdbid), cords)
-    elif option == 'Spatial analysis' and len(seq) != 0 and len(cords) != 0:
-        spatial_analysis_ui(imgg, seq, pdbcif, cords)
-    elif option == 'Spatial analysis' and (len(seq) == 0 or len(cords) == 0):
-        st.subheader(":red[Incomplete Information to Visualize]")
-    elif len(seq) != 0 and option != 'Spatial analysis':
-        sequence_ui(imgg, seq, option)
+    if option == 'Spatial analysis':
+
+        st.subheader("Input Option 1: RCSB PDB IDs")
+        pdbid = st.text_input('PDB ID','', placeholder="7OHC").upper()
+        if pdbid != '' and seq == '':
+            try:
+                seq, cords = getSequence(getFasta(pdbid), getCif(pdbid), "cif")
+            except:
+                pass
+
+        st.markdown("---")
+
+        st.subheader("Input Option 2: Custom Structure")
+
+        col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
+        with col1:
+            try:
+                st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/1mcLi6EMX7xjKzD4gqQUrHAEQJFGz2rey/view?usp=sharing")
+                fasta = st.file_uploader("upload a fasta file").getvalue().decode("utf-8")
+                t1 = st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/1mcLi6EMX7xjKzD4gqQUrHAEQJFGz2rey/view?usp=sharing")
+            except:
+                pass
+
+        with col2:
+            st.subheader("AND")
+
+        with col3:
+            try:
+                st.markdown("[example cif file](%s)" % "https://drive.google.com/file/d/15QZako2huyhmpRuoyXIgJzG9oz72UUk4/view?usp=sharing")
+                pdbcif = st.file_uploader("upload a pdb/cif file")
+                fileextension = pdbcif.name.split('.')[-1]
+                pdbcif = pdbcif.getvalue().decode("utf-8")
+                seq, cords = getSequence(fasta, pdbcif, fileextension)
+            except:
+                pass
+
+        st.markdown("NOTE: We recommend running the website using .cif files from RCSB PDB rather than .pdb, when possible.")
+        st.markdown("---")
+
+        if len(seq) != 0 and len(cords) != 0 and pdbid != '':
+            spatial_analysis_ui(imgg, seq, getCif(pdbid), cords)
+        else:
+            st.subheader(":red[Incomplete Information to Visualize]")
     else:
-        st.subheader(":red[Please provide a sequence (>= 50bp) or a pdb id/file]")
+        
+        col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
+        with col1:
+            try:
+                st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/13ZLmQs49wROgKT4M1vbdZ61odyqPzoan/view?usp=sharing")
+                fasta = st.file_uploader("upload a fasta file (DNA sequences only)").getvalue().decode("utf-8")
+                seq1 = fasta.rstrip().split('\n')[1::2]
+            except:
+                pass
+
+        with col2:
+            st.subheader("AND")
+
+        with col3:
+            try:
+                fasta = st.text_area("custom DNA sequence input (one sequence per line)",
+                                     placeholder="ATCAGAATCCCGGTGCCGAGGCCGCTCAATTGGTCGTAGACAGCTCTAGCACCGCTTAAACGCACGTACGCGCTGTCCCCCGCGTTTTAACCGCCAAGGGGATTACTCCCTAGTCTCCAGGCACGTGTCAGATATATACATCGAT\nATCGATGTATATATCTGACACGTGCCTGGAGACTAGGGAGTAATCCCCTTGGCGGTTAAAACGCGGGGGACAGCGCGTACGTGCGTTTAAGCGGTGCTAGAGCTGTCTACGACCAATTGAGCGGCCTCGGCACCGGGATTCTGAT")
+                seq2 = fasta.split()
+            except:
+                pass
+        
+        if len(seq1) != 0:
+            if len(seq1[0]) < 50:
+                st.subheader(":red[Please provide a sequence (>= 50bp) or a pdb id/file]")
+            else:
+                sequence_ui(imgg, seq1, option)      
+        elif len(seq2) != 0:
+            if len(seq2[0]) < 50:
+                st.subheader(":red[Please provide a sequence (>= 50bp) or a pdb id/file]")
+            else:
+                sequence_ui(imgg, seq2, option)
     return 0
 
 main()
