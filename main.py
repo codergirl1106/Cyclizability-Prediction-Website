@@ -564,12 +564,12 @@ def sequence_ui(imgg, seqs, option):
             ax.plot(cNfree, color='black')
 
             st.markdown("***")
-            st.header(f"C{modelnum}free prediction for Sequence {count}")
-            filetype5 = st.selectbox(f'C{modelnum}free sequence {count} file type', ('png', 'svg', 'jpeg'))
+            st.header(f"C{modelnum}corr prediction for Sequence {count}")
+            filetype5 = st.selectbox(f'C{modelnum}corr sequence {count} file type', ('png', 'svg', 'jpeg'))
 
             fig.savefig(imgg, format=filetype5)
 
-            file_name1 = st.text_input(f'C{modelnum}free sequence {count} file name', f'C{modelnum}free_sequence{count}_prediction.{filetype5}')
+            file_name1 = st.text_input(f'C{modelnum}corr sequence {count} file name', f'C{modelnum}corr_sequence{count}_prediction.{filetype5}')
             btn = st.download_button(
                 label="Download graph",
                 data=imgg,
@@ -580,18 +580,18 @@ def sequence_ui(imgg, seqs, option):
             st.pyplot(fig)
         else:
             st.markdown("***")
-            st.header(f"C{modelnum}free prediction for Sequence {count}")
-            st.markdown(f"Sequence < 50bp; C{modelnum}free prediction cannot be run on this sequence.")
+            st.header(f"C{modelnum}corr prediction for Sequence {count}")
+            st.markdown(f"Sequence < 50bp; C{modelnum}corr prediction cannot be run on this sequence.")
 
         count += 1
 
     st.markdown("***")
 
-    st.header(f"Data of C{modelnum}free prediction")
+    st.header(f"Data of C{modelnum}corr prediction")
 
     long_text = "\n".join([','.join(map(lambda x: format(x, '.4f'), i)) for i in cNfree_predictions])
 
-    file_name = st.text_input('file name', f'C{modelnum}free_prediction_data.txt')
+    file_name = st.text_input('file name', f'C{modelnum}corr_prediction_data.txt')
 
     st.download_button('Download data', long_text, file_name=f"{file_name}")
 
@@ -662,24 +662,24 @@ def main():
         else:
             st.subheader(":red[Incomplete Information to Visualize]")
     else:
-        
+        st.subheader("Input")
         col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
         with col1:
             try:
                 st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/13ZLmQs49wROgKT4M1vbdZ61odyqPzoan/view?usp=sharing")
                 fasta = st.file_uploader("upload a fasta file (DNA sequences only)").getvalue().decode("utf-8")
-                seq1 = fasta.rstrip().split('\n')[1::2]
+                seq1 = fasta.upper().rstrip().split('\n')[1::2]
             except:
                 pass
 
         with col2:
-            st.subheader("AND")
+            st.subheader("OR")
 
         with col3:
             try:
                 fasta = st.text_area("custom DNA sequence input (one sequence per line)",
                                      placeholder="ATCAGAATCCCGGTGCCGAGGCCGCTCAATTGGTCGTAGACAGCTCTAGCACCGCTTAAACGCACGTACGCGCTGTCCCCCGCGTTTTAACCGCCAAGGGGATTACTCCCTAGTCTCCAGGCACGTGTCAGATATATACATCGAT\nATCGATGTATATATCTGACACGTGCCTGGAGACTAGGGAGTAATCCCCTTGGCGGTTAAAACGCGGGGGACAGCGCGTACGTGCGTTTAAGCGGTGCTAGAGCTGTCTACGACCAATTGAGCGGCCTCGGCACCGGGATTCTGAT")
-                seq2 = fasta.split()
+                seq2 = fasta.upper().split()
             except:
                 pass
         
