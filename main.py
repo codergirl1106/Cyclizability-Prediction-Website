@@ -89,6 +89,9 @@ def processFasta(alist):
             sequences.append(current_sequence)
         else:
             current_sequence += i
+            
+    if current_sequences != "":
+        sequences.append(current_sequence)
     return sequences
 
 def getSequence(fasta, text, ciforpdb):
