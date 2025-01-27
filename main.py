@@ -88,6 +88,7 @@ def processFasta(alist):
     for i in alist[1:]:
         if i[0] == ">":
             sequences.append(current_sequence)
+            current_sequence = ""
         else:
             current_sequence += i
             
