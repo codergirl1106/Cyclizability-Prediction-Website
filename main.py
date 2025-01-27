@@ -82,6 +82,7 @@ def readPDB(text, chains):
     return out
 
 def processFasta(alist):
+    print(alist)
     sequences = []
     current_sequence = ""
     for i in alist[1:]:
