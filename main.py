@@ -90,7 +90,7 @@ def processFasta(alist):
         else:
             current_sequence += i
             
-    if current_sequences != "":
+    if current_sequence != "":
         sequences.append(current_sequence)
     return sequences
 
