@@ -81,6 +81,16 @@ def readPDB(text, chains):
     
     return out
 
+def processFasta(alist):
+    sequences = []
+    current_sequence = ""
+    for i in alist[1:]:
+        if i[0] == ">":
+            sequences.append(current_sequence)
+        else:
+            current_sequence += i
+    return sequences
+
 def getSequence(fasta, text, ciforpdb):
     seq_and_chains = []
     fasta = fasta.split('\n')[:-1]
@@ -668,7 +678,7 @@ def main():
             try:
                 st.markdown("[example fasta file](%s)" % "https://drive.google.com/file/d/13ZLmQs49wROgKT4M1vbdZ61odyqPzoan/view?usp=sharing")
                 fasta = st.file_uploader("upload a fasta file (DNA sequences only)").getvalue().decode("utf-8")
-                seq1 = fasta.upper().rstrip().split('\n')[1::2]
+                seq1 = processFasta(fasta.upper().rstrip().split('\n'))
             except:
                 pass
 
