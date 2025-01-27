@@ -82,7 +82,6 @@ def readPDB(text, chains):
     return out
 
 def processFasta(alist):
-    print(alist)
     sequences = []
     current_sequence = ""
     for i in alist[1:]:
@@ -95,7 +94,6 @@ def processFasta(alist):
     if current_sequence != "":
         sequences.append(current_sequence)
 
-    print(sequences)
     return sequences
 
 def getSequence(fasta, text, ciforpdb):
