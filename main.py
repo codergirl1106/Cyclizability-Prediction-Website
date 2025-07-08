@@ -334,16 +334,10 @@ def pdb_out(psi, amp, factor, cords):
         hetatm = ''
         conect = ''
         for j in range(len(o)):
-            hetatm += 'HETATM' + str(counterhetatm+j+1).rjust(5) + ' C    AXI ' + f'X{i+1}' +' '*(3-len(str(i+1)))+'1    ' # '    1' 5d
-            for k in range(3):
-                hetatm += str(o[j][k]).rjust(8)
-            hetatm += '\n'
+            hetatm += f"HETATM{(counterhetatm+j+1):5d} C{(j+1):<3} AXI X{(i+1):4d}    {o[j][0]:8.3f}{o[j][1]:8.3f}{o[j][2]:8.3f}  1.00  0.00            C\n"
         for j in range(len(e)):
-            hetatm += 'HETATM' + str(counterhetatm+j+1+len(o)).rjust(5) + ' C    AXI ' + f'X{i+1}' +' '*(3-len(str(i+1)))+'1    ' # '    1' 5d
-            for k in range(3):
-                hetatm += str(round(e[j][k], 2)).rjust(8)
-            hetatm += '\n'
-        for j in range(len(o)-1):
+            hetatm += f"HETATM{(counterhetatm+len(o)+j+1):5d} C{(len(o)+j+1):<3} AXI X{(i+1):4d}    {e[j][0]:8.3f}{e[j][1]:8.3f}{e[j][2]:8.3f}  1.00  0.00            C\n"
+        for j in range(len(o)-1):            
             conect += 'CONECT' + str(counterconect+j+1).rjust(5) + str(counterconect+j+2).rjust(5) + '\n' # CONECT    1    2
         for j in range(len(o)):
             conect += 'CONECT' + str(counterconect+j+1).rjust(5) + str(counterconect+j+1+len(o)).rjust(5) + '\n' # CONECT    1    2
@@ -665,15 +659,19 @@ def main():
                 pdbcif = st.file_uploader("upload a pdb/cif file")
                 fileextension = pdbcif.name.split('.')[-1]
                 pdbcif = pdbcif.getvalue().decode("utf-8")
+                print("hI!")
                 seq, cords = getSequence(fasta, pdbcif, fileextension)
+                print("ohhhh T-T")
             except:
                 pass
 
         st.markdown("NOTE: We recommend running the website using .cif files from RCSB PDB rather than .pdb, when possible.")
         st.markdown("---")
-
+        
         if len(seq) != 0 and len(cords) != 0 and pdbid != '':
             spatial_analysis_ui(imgg, seq, getCif(pdbid), cords)
+        elif len(seq) != 0 and len(cords) != 0:
+            spatial_analysis_ui(imgg, seq, pdbcif, cords)
         else:
             st.subheader(":red[Incomplete Information to Visualize]")
     else:
